@@ -80,6 +80,7 @@ class XmppApiTest : ShouldSpec() {
             name = "xmppEnvName",
             xmppServerHosts = listOf("xmppServerHost1", "xmppServerHost2"),
             xmppDomain = "xmppDomain",
+            baseUrl = "baseUrl",
             controlLogin = XmppCredentials(
                 domain = "controlXmppDomain",
                 username = "xmppUsername",
@@ -107,7 +108,7 @@ class XmppApiTest : ShouldSpec() {
         val jibriStatusManager: JibriStatusManager = mockk(relaxed = true)
         // the initial status is idle
         val expectedStatus =
-                JibriStatus(ComponentBusyStatus.IDLE, OverallHealth(ComponentHealthStatus.HEALTHY, mapOf()))
+            JibriStatus(ComponentBusyStatus.IDLE, OverallHealth(ComponentHealthStatus.HEALTHY, mapOf()))
         every { jibriStatusManager.overallStatus } returns expectedStatus
 
         beforeSpec {

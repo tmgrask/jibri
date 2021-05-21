@@ -35,8 +35,8 @@ import org.jitsi.jibri.sipgateway.SipClientParams
 import org.jitsi.jibri.status.ComponentState
 import org.jitsi.jibri.status.JibriStatus
 import org.jitsi.jibri.status.JibriStatusManager
-import org.jitsi.jibri.util.extensions.error
 import org.jitsi.jibri.util.getCallUrlInfoFromJid
+import org.jitsi.utils.logging2.createLogger
 import org.jitsi.xmpp.extensions.jibri.JibriIq
 import org.jitsi.xmpp.extensions.jibri.JibriIqProvider
 import org.jitsi.xmpp.extensions.jibri.JibriStatusPacketExt
@@ -49,7 +49,6 @@ import org.jivesoftware.smack.packet.XMPPError
 import org.jivesoftware.smack.provider.ProviderManager
 import org.jivesoftware.smackx.ping.PingManager
 import org.jxmpp.jid.impl.JidCreate
-import java.util.logging.Logger
 
 private class UnsupportedIqMode(val iqMode: String) : Exception()
 
@@ -69,7 +68,7 @@ class XmppApi(
     private val xmppConfigs: List<XmppEnvironmentConfig>,
     private val jibriStatusManager: JibriStatusManager
 ) : IQListener {
-    private val logger = Logger.getLogger(this::class.qualifiedName)
+    private val logger = createLogger()
     private lateinit var mucClientManager: MucClientManager
 
     /**
@@ -103,10 +102,13 @@ class XmppApi(
                     domain = config.controlLogin.domain
                     username = config.controlLogin.username
                     password = config.controlLogin.password
+                    config.controlLogin.port?.let { port = it.toString() }
 
                     if (config.trustAllXmppCerts) {
-                        logger.info("The trustAllXmppCerts config is enabled for this domain, " +
-                                "all XMPP server provided certificates will be accepted")
+                        logger.info(
+                            "The trustAllXmppCerts config is enabled for this domain, " +
+                                "all XMPP server provided certificates will be accepted"
+                        )
                         disableCertificateVerification = config.trustAllXmppCerts
                     }
 
@@ -160,16 +162,17 @@ class XmppApi(
     private fun handleJibriIq(jibriIq: JibriIq, mucClient: MucClient): IQ {
         logger.info("Received JibriIq ${jibriIq.toXML()} from environment $mucClient")
         val xmppEnvironment = xmppConfigs.find { it.xmppServerHosts.contains(mucClient.id) }
-                ?: return IQ.createErrorResponse(
-                    jibriIq,
-                    XMPPError.getBuilder().setCondition(XMPPError.Condition.bad_request)
-                )
+            ?: return IQ.createErrorResponse(
+                jibriIq,
+                XMPPError.getBuilder().setCondition(XMPPError.Condition.bad_request)
+            )
         return when (jibriIq.action) {
             JibriIq.Action.START -> handleStartJibriIq(jibriIq, xmppEnvironment, mucClient)
             JibriIq.Action.STOP -> handleStopJibriIq(jibriIq)
             else -> IQ.createErrorResponse(
                 jibriIq,
-                XMPPError.getBuilder().setCondition(XMPPError.Condition.bad_request))
+                XMPPError.getBuilder().setCondition(XMPPError.Condition.bad_request)
+            )
         }
     }
 
@@ -229,8 +232,10 @@ class XmppApi(
                         failureReason = JibriIq.FailureReason.ERROR
                         sipAddress = request.sipAddress
                         shouldRetry = serviceState.error.shouldRetry()
-                        logger.info("Current service had an error ${serviceState.error}, " +
-                            "sending error iq ${toXML()}")
+                        logger.info(
+                            "Current service had an error ${serviceState.error}, " +
+                                "sending error iq ${toXML()}"
+                        )
                         mucClient.sendStanza(this)
                     }
                 }
@@ -280,7 +285,8 @@ class XmppApi(
         val callUrlInfo = getCallUrlInfoFromJid(
             startIq.room,
             xmppEnvironment.stripFromRoomDomain,
-            xmppEnvironment.xmppDomain
+            xmppEnvironment.xmppDomain,
+            xmppEnvironment.baseUrl
         )
         val appData = startIq.appData?.let {
             jacksonObjectMapper().readValue<AppData>(startIq.appData)
@@ -333,7 +339,8 @@ class XmppApi(
                     SipGatewayServiceParams(
                         callParams,
                         xmppEnvironment.callLogin,
-                        SipClientParams(startIq.sipAddress, startIq.displayName)),
+                        SipClientParams(startIq.sipAddress, startIq.displayName)
+                    ),
                     EnvironmentContext(xmppEnvironment.name),
                     serviceStatusHandler
                 )
